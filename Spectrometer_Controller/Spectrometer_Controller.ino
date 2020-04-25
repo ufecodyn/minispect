@@ -1,126 +1,613 @@
-//#include <Time.h>
-#include <TimeLib.h>
-
 /*
- * Macro Definitions
+ * Pin setup:
+ * Clock : D2
+ * ST    : D3
+ * Video : A0
  */
 
-#include <Time.h>
-#define SPEC_TRG         A0
-#define SPEC_ST          A1
-#define SPEC_CLK         A2
-#define SPEC_VIDEO       A3
-#define WHITE_LED        A4
-#define LASER_404        A5
-#define SPEC_CHANNELS    288 // New Spec Channel
-#define DELAY_TIME       1    // 1 ms delay time between clocks.
-int data[SPEC_CHANNELS];
-time_t start;
-time_t finish;
-double cpu_time_used;
+#define SPEC_CHANNELS 288
+#define VIDEO A0
+#define BAUD 115200
 
-using namespace std;
+int vals[SPEC_CHANNELS];
+int serialByteIn;
 
-void setup(){
-  //Set desired pins to OUTPUT
-  pinMode(SPEC_CLK, OUTPUT);
-  pinMode(SPEC_ST, OUTPUT);
-  pinMode(LASER_404, OUTPUT);
-  pinMode(WHITE_LED, OUTPUT);
-
-  //Initialize pin outputs
-  digitalWrite(SPEC_CLK, LOW);
-  digitalWrite(SPEC_TRG, LOW);
-  digitalWrite(SPEC_ST, LOW);
-  clock(1);
-  Serial.begin(115200); // Baud Rate set to 115200
+void setup() {
+ DDRD = DDRD | B11111100;
+ PORTD = B00000000;
+ Serial.begin(BAUD);
 }
 
+
 /*
- * This functions reads spectrometer data from SPEC_VIDEO
- * Look at the Timing Chart in the Datasheet for more info
+ * Port manipulation allows us to change the pin output much faster.
+ * Unfortuantely, this comes with a few drawbacks
+ *  1. We can't just place a "pin high, delay, pin low, delay" in a loop and call it a day. 
+ *     This is because at the end of the loop, the microcontroller must calculate the jump address to jump to the beginning of the loop
+ *     We end up with an unstable clock with a high period much shorter than the low period. 
+ *  2. The clock itself is somewhat unstable. 
+ * 
  */
-void readSpectrometer(short integrationCycles){
-  // Start clock cycle and set start pulse to signal start
-  clock(1);
-  digitalWrite(SPEC_ST, HIGH);
+inline void shortDelay(){
+  asm volatile("nop");
+}
 
-  //Sample for a period of time
-  clock(integrationCycles);
+static inline void sequence(){
+  //ST HIGH: 6 CLOCKS
+  // --- Clock --- 0
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
   
-  //Set SPEC_ST to low
-  digitalWrite(SPEC_ST, LOW);
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  //ST HIGH: 6 CLOCKS
+  // --- Clock --- 0
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
 
-  //Sample for a period of time
-  clock(4);
+  //ST HIGH: 6 CLOCKS
+  // --- Clock --- 0
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+  
+  PORTD = B00001100;
+  asm volatile("nop");
+  PORTD = B00001000;
+  asm volatile("nop");
+
 
   
-  //Read from SPEC_VIDEO
+  
+  //ST LOW: 87 CLOCKS
+  // --- Clock --- 0
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  
+  // --- Clock --- 10
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  
+  // --- Clock --- 20
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  
+  // --- Clock --- 30
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  
+  // --- Clock --- 40
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  
+  // --- Clock --- 50
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  
+  // --- Clock --- 60
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  
+  // --- Clock --- 70
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  
+  // --- Clock --- 80
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
+  PORTD = B00000100;
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  
   for(int i = 0; i < SPEC_CHANNELS; i++){
-      data[i] = analogRead(SPEC_VIDEO);
-      clock(1); 
-  }
-
-  //Set SPEC_ST to high
-  digitalWrite(SPEC_ST, HIGH);
-  
-  //Sample for a small amount of time
-  clock(7);
-  
-}
-
-/*
- * The function below prints out data to the terminal or 
- * processing plot
- */
-void printData(){
-  
-  for (int i = 0; i < SPEC_CHANNELS; i++){
-    
-    Serial.print(data[i]);
-    Serial.print(' ');
-    
-  }
-  
-  Serial.print('\n'); 
-}
-
-boolean ultra = true;
-boolean led = true;
-
-
-void loop(){
-  short integrationCycles = 1;
-  readSpectrometer(integrationCycles);
-  printData();  
-  if(Serial.available()){
-    char val = Serial.read();
-
-    //Read the characters coming in through the serial port
-    //If I is read, parse the value following it to adjust the integration time. 
-    if(val == 'I'){
-      integrationCycles = Serial.read();
-    }
-
-    //Ultraviolet toggle; send a character U through the serial port to toggle. 
-    if(val == 'U'){
-      if(ultra) digitalWrite(A5, HIGH);
-      else digitalWrite(A5, LOW);
-      ultra = !ultra;
-    }
-    
-    //LED toggle; send a character L through the serial port to toggle.
-    if(val == 'L'){
-      if(led) digitalWrite(A4, HIGH);
-      else digitalWrite(A4, LOW);
-      led = !led;
-    }      
+    clock(); 
+    vals[i] = analogRead(VIDEO);
   }
 }
 
-void clock(short cycles){
-  for(short i = 0; i < cycles; i++){
-    digitalWrite(SPEC_CLK, LOW);
-    digitalWrite(SPEC_CLK, HIGH);
+void printValues(){
+  for(int i = 0; i < SPEC_CHANNELS; i++){
+    Serial.print(vals[i]);
+    Serial.write(" ");
   }
+  Serial.write("\n");
+}
+
+static inline void clock(){
+  PORTD = B00000100; 
+  asm volatile("nop");
+  PORTD = B00000000;
+  asm volatile("nop");
+  PORTD = B00000100; 
+}
+
+void loop() {
+    sequence();
+    printValues();
 }

@@ -18,7 +18,7 @@ MAX_INTENSITY = 1024
 # z-axis: intensity (0:MAX_INTENSITY)
 
 
-spect = serial.Serial('COM3', 115200, timeout=0.1)
+spect = serial.Serial('COM7', 115200, timeout=1)
 snapshots = [[0]* CHANNELS] * CHANNELS
 
 def live_plot(blit):
@@ -38,29 +38,22 @@ def live_plot(blit):
 	
 	while (True):
 		start = perf_counter()
-	
-		if keyboard.is_pressed('u'): 
-			spect.write('U'.encode("ascii"))
-		elif keyboard.is_pressed('i'): 
-			spect.write('L'.encode("ascii"))
-		elif keyboard.is_pressed('x'):
-			break
 			
-		spect.write('R'.encode("ascii"))
 		datareadstart = perf_counter()
 		data = (spect.readline().split())
 		datareadend = perf_counter()
-		#print(datareadend - datareadstart)
+		print(datareadend - datareadstart)
 		if(len(data) == 288):
 			data = [float(n) for n in data]
 			snapshots.insert(0, data)
 			del snapshots[-1]
 			img.set_data(snapshots)
-		if blit:
-			fig.canvas.restore_region(axbackground)
-			ax1.draw_artist(img)
-			fig.canvas.blit(ax1.bbox)
-		else: fig.canvas.draw()
+
+		fig.canvas.restore_region(axbackground)
+		ax1.draw_artist(img)
+		fig.canvas.blit(ax1.bbox)
+			
+		#else: fig.canvas.draw()
 		fig.canvas.flush_events()
 		end = perf_counter()
 		#print(1.0 / (end - start), " frames per second")
