@@ -8,6 +8,12 @@
 #define SPEC_CHANNELS 288
 #define VIDEO A0
 #define BAUD 115200
+#define PORTD _SFR_IO8(0x0B)
+#define __SFR_OFFSET 0x20
+#define _SFR_IO8(io_addr) _MMIO_BYTE ((io_addr) + __SFR_OFFSET)
+#define _MMIO_BYTE(mem_addr) (*(volatile uint8_t *)(mem_addr))
+#define _SFR_IO_ADDR(sfr) ((sfr) - __SFR_OFFSET)
+
 
 int vals[SPEC_CHANNELS];
 int serialByteIn;
@@ -30,6 +36,12 @@ void setup() {
  */
 inline void shortDelay(){
   asm volatile("nop");
+}
+
+//sandbox for messing around with ASM clocking
+static inline void clockTest(){
+  asm volatile(" sbi %0, %1 \n" : : "I" (_SFR_IO_ADDR(PORTD)), "I" (PORTD2));  
+  asm volatile(" sbi %0, %1 \n" : : "I" (_SFR_IO_ADDR(PORTD)), "I" (PORTD2));  
 }
 
 static inline void sequence(){
