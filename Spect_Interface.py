@@ -4,7 +4,6 @@ import mpl_toolkits.mplot3d.axes3d as p3
 import matplotlib.animation as animation
 import seaborn
 import serial
-import keyboard
 from time import perf_counter
 
 from matplotlib import style
@@ -18,7 +17,7 @@ MAX_INTENSITY = 1024
 # z-axis: intensity (0:MAX_INTENSITY)
 
 
-spect = serial.Serial('COM7', 115200, timeout=1)
+spect = serial.Serial('COM5', 115200, timeout=1)
 snapshots = [[0]* CHANNELS] * CHANNELS
 
 def live_plot(blit):
@@ -40,6 +39,8 @@ def live_plot(blit):
 		start = perf_counter()
 			
 		datareadstart = perf_counter()
+		spect.write(b'r')
+		spect.write(10)
 		data = (spect.readline().split())
 		datareadend = perf_counter()
 		print(datareadend - datareadstart)

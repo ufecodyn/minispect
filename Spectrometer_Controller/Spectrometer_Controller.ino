@@ -8,11 +8,6 @@
 #define SPEC_CHANNELS 288
 #define VIDEO A0
 #define BAUD 115200
-#define PORTD _SFR_IO8(0x0B)
-#define __SFR_OFFSET 0x20
-#define _SFR_IO8(io_addr) _MMIO_BYTE ((io_addr) + __SFR_OFFSET)
-#define _MMIO_BYTE(mem_addr) (*(volatile uint8_t *)(mem_addr))
-#define _SFR_IO_ADDR(sfr) ((sfr) - __SFR_OFFSET)
 
 
 int vals[SPEC_CHANNELS];
@@ -24,6 +19,27 @@ void setup() {
  Serial.begin(BAUD);
 }
 
+// Clock sequence-- FOR loop that clocks cycles * 2 times. Each "cycle" takes 9 clock cycles. Since Arduino Nano has a 16 MHz clock rate, this gives us 2.8e-7 s per clock (0.28125 us)
+// This method is used in the sequence() function to adjust the integration time
+inline void integrate(int cycles){
+  int cyc = 5;
+  asm volatile( "clr r16 \n ldi r17, %0" : : "num" (cyc));
+  PORTD = B00001100;
+  asm volatile(     
+        "loop:"
+  );    
+  
+  PORTD = B00001100;
+  asm volatile("\t inc r16");  // increment by one
+  PORTD = B00001000;
+  asm volatile("\t nop \n ");
+  PORTD = B00001100;
+  asm volatile("\t cp r16, r17 \n");
+  PORTD = B00001000;
+  asm volatile("\t brlt loop \n"
+               "\t nop"); 
+  
+}
 
 /*
  * Port manipulation allows us to change the pin output much faster.
@@ -33,18 +49,12 @@ void setup() {
  *     We end up with an unstable clock with a high period much shorter than the low period. 
  *  2. The clock itself is somewhat unstable. 
  * 
+ * The parameter cycles is an integer representing the number of times the FOR loop in integrate() should execute; this means that the function will clock cycles*2 times, using 4.5 system clock cycles per driven clock. 
+ * Setting the cycles value to 0 achieves the minimum integration time as per the C12880MA documentation.
+ * 
  */
-inline void shortDelay(){
-  asm volatile("nop");
-}
 
-//sandbox for messing around with ASM clocking
-static inline void clockTest(){
-  asm volatile(" sbi %0, %1 \n" : : "I" (_SFR_IO_ADDR(PORTD)), "I" (PORTD2));  
-  asm volatile(" sbi %0, %1 \n" : : "I" (_SFR_IO_ADDR(PORTD)), "I" (PORTD2));  
-}
-
-static inline void sequence(){
+static inline void sequence(int cycles){
   //ST HIGH: 6 CLOCKS
   // --- Clock --- 0
   PORTD = B00001100;
@@ -77,73 +87,10 @@ static inline void sequence(){
   PORTD = B00001000;
   asm volatile("nop");
   
-  //ST HIGH: 6 CLOCKS
-  // --- Clock --- 0
-  PORTD = B00001100;
-  asm volatile("nop");
-  PORTD = B00001000;
-  asm volatile("nop");
-  
-  PORTD = B00001100;
-  asm volatile("nop");
-  PORTD = B00001000;
-  asm volatile("nop");
-  
-  PORTD = B00001100;
-  asm volatile("nop");
-  PORTD = B00001000;
-  asm volatile("nop");
-  
-  PORTD = B00001100;
-  asm volatile("nop");
-  PORTD = B00001000;
-  asm volatile("nop");
-  
-  PORTD = B00001100;
-  asm volatile("nop");
-  PORTD = B00001000;
-  asm volatile("nop");
-  
-  PORTD = B00001100;
-  asm volatile("nop");
-  PORTD = B00001000;
-  asm volatile("nop");
-
-  //ST HIGH: 6 CLOCKS
-  // --- Clock --- 0
-  PORTD = B00001100;
-  asm volatile("nop");
-  PORTD = B00001000;
-  asm volatile("nop");
-  
-  PORTD = B00001100;
-  asm volatile("nop");
-  PORTD = B00001000;
-  asm volatile("nop");
-  
-  PORTD = B00001100;
-  asm volatile("nop");
-  PORTD = B00001000;
-  asm volatile("nop");
-  
-  PORTD = B00001100;
-  asm volatile("nop");
-  PORTD = B00001000;
-  asm volatile("nop");
-  
-  PORTD = B00001100;
-  asm volatile("nop");
-  PORTD = B00001000;
-  asm volatile("nop");
-  
-  PORTD = B00001100;
-  asm volatile("nop");
-  PORTD = B00001000;
-  asm volatile("nop");
-
-
-  
-  
+  //INTEGRATE for x cycles in addition to the first 6 required.
+  // This is used to modify the integration time. Read method documentation for more information.
+  //integrate(cycles);
+  delay(cycles);
   //ST LOW: 87 CLOCKS
   // --- Clock --- 0
   PORTD = B00000100;
@@ -620,6 +567,16 @@ static inline void clock(){
 }
 
 void loop() {
-    sequence();
-    printValues();
+  if(Serial){
+    serialByteIn = Serial.read();
+    if(serialByteIn == 'r'){
+        int cycles = Serial.parseInt();
+        sequence(cycles);
+        /*Serial.print("Cycles: ");
+        Serial.print(cycles);
+        Serial.print("\n");*/
+        printValues();
+        serialByteIn = 'a';
+    }
+  }
 }
