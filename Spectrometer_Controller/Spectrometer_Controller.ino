@@ -6,7 +6,7 @@
  */
 
 #define SPEC_CHANNELS 288
-#define VIDEO A0
+#define VIDEO A4
 #define BAUD 115200
 
 
@@ -19,27 +19,6 @@ void setup() {
  Serial.begin(BAUD);
 }
 
-// Clock sequence-- FOR loop that clocks cycles * 2 times. Each "cycle" takes 9 clock cycles. Since Arduino Nano has a 16 MHz clock rate, this gives us 2.8e-7 s per clock (0.28125 us)
-// This method is used in the sequence() function to adjust the integration time
-inline void integrate(int cycles){
-  int cyc = 5;
-  asm volatile( "clr r16 \n ldi r17, %0" : : "num" (cyc));
-  PORTD = B00001100;
-  asm volatile(     
-        "loop:"
-  );    
-  
-  PORTD = B00001100;
-  asm volatile("\t inc r16");  // increment by one
-  PORTD = B00001000;
-  asm volatile("\t nop \n ");
-  PORTD = B00001100;
-  asm volatile("\t cp r16, r17 \n");
-  PORTD = B00001000;
-  asm volatile("\t brlt loop \n"
-               "\t nop"); 
-  
-}
 
 /*
  * Port manipulation allows us to change the pin output much faster.
@@ -49,12 +28,12 @@ inline void integrate(int cycles){
  *     We end up with an unstable clock with a high period much shorter than the low period. 
  *  2. The clock itself is somewhat unstable. 
  * 
- * The parameter cycles is an integer representing the number of times the FOR loop in integrate() should execute; this means that the function will clock cycles*2 times, using 4.5 system clock cycles per driven clock. 
- * Setting the cycles value to 0 achieves the minimum integration time as per the C12880MA documentation.
+ * The parameter intTime is an integer representing the number of times the FOR loop in integrate() should execute; this means that the function will clock intTime*2 times, using 4.5 system clock intTime per driven clock. 
+ * Setting the intTime value to 0 achieves the minimum integration time as per the C12880MA documentation.
  * 
  */
 
-static inline void sequence(int cycles){
+static inline void sequence(int intTime){
   //ST HIGH: 6 CLOCKS
   // --- Clock --- 0
   PORTD = B00001100;
@@ -87,10 +66,10 @@ static inline void sequence(int cycles){
   PORTD = B00001000;
   asm volatile("nop");
   
-  //INTEGRATE for x cycles in addition to the first 6 required.
+  //INTEGRATE for x intTime in addition to the first 6 required.
   // This is used to modify the integration time. Read method documentation for more information.
-  //integrate(cycles);
-  delay(cycles);
+  //integrate intTime);
+  delay(intTime);
   //ST LOW: 87 CLOCKS
   // --- Clock --- 0
   PORTD = B00000100;
@@ -558,6 +537,10 @@ void printValues(){
   Serial.write("\n");
 }
 
+void bluetoothInit(){
+  
+}
+
 static inline void clock(){
   PORTD = B00000100; 
   asm volatile("nop");
@@ -570,10 +553,10 @@ void loop() {
   if(Serial){
     serialByteIn = Serial.read();
     if(serialByteIn == 'r'){
-        int cycles = Serial.parseInt();
-        sequence(cycles);
-        /*Serial.print("Cycles: ");
-        Serial.print(cycles);
+        int intTime = Serial.parseInt();
+        sequence(intTime);
+        /*Serial.print( intTime: ");
+        Serial.print intTime);
         Serial.print("\n");*/
         printValues();
         serialByteIn = 'a';

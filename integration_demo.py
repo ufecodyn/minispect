@@ -18,7 +18,8 @@ def connect(portnum):
         except:
             return connect(portnum + 1)
     else:
-        return none
+        print("Could not connect to spectrometer!")
+        return None
 
 spect = connect(0)
 
@@ -68,14 +69,17 @@ def auto_integration_time(start):
     if (len(data) == 0):
         return auto_integration_time(start)
     else:
-        m = max(data)
-        print('\t\tMax:', m)
-        if(m <= upper and m >= lower): 
+        try:
+            m = max(data)
+            print('\t\tMax:', m)
+            if(m <= upper and m >= lower): 
+                return start
+            elif(m > upper):
+                return auto_integration_time(int(start * 0.6))
+            elif(m < lower):
+                return auto_integration_time(int(start + 1))
+        except:
             return start
-        elif(m > upper):
-            return auto_integration_time(int(start * 0.6))
-        elif(m < lower):
-            return auto_integration_time(int(start + 1))
 
 
 def auto_integration_time_improved(time, target):
@@ -109,7 +113,7 @@ def auto_integration_time_improved(time, target):
 
 if __name__ == "__main__":
     state = 'z'
-    intTime = 50
+    intTime = 0
     while(state != 'x'):
         print("Current Integration Time:", intTime)
         print("Select an Option:")
@@ -133,7 +137,15 @@ if __name__ == "__main__":
             for i in range (0, 10):
                 print(update(custInt))
         elif(state == 'd'):
-            plt.plot(update(intTime))
+            sets = []
+            for i in range (0, 10):
+                sets.append(update(intTime))
+            sum = sets[0]
+            for i in range (1, len(sets)):
+                sum = np.array(sum) + np.array(sets[i])
+            sum = np.array(sum) / 10
+
+            plt.plot(sum)
             plt.show()
             
         elif(state == 'e'):
