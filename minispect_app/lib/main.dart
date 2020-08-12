@@ -41,8 +41,8 @@ class _HomePageState extends State<HomePage> {
   var data = new List(288);
 
   @override
-  void initState() {
-    super.initState();
+
+  super.initState();
 
     FlutterBluetoothSerial.instance.state.then((state) {
       setState(() {
