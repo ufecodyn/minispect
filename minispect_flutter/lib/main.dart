@@ -1,39 +1,9 @@
 import 'dart:async';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import './settings.dart';
-
-void main() {
-  runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.green,
-        // This makes the visual density adapt to the platform that you run
-        // the app on. For desktop platforms, the controls will be smaller and
-        // closer together (more dense) than on mobile platforms.
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: MyHomePage(title: 'Main Screen'),
-    );
-  }
-}
+import './scan.dart';
 
 class MyHomePage extends StatefulWidget {
   MyHomePage({Key key, this.title}) : super(key: key);
@@ -53,9 +23,58 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => _MyHomePageState();
 }
 
+class RootAppStateChangeNotifier extends ChangeNotifier {
+  BluetoothConnection deviceConnection;
+  BluetoothDevice device;
+
+  void openConnection(BluetoothDevice newDevice) {
+    BluetoothConnection.toAddress(newDevice.address).then((newConnection) {
+      deviceConnection = newConnection;
+      device = newDevice;
+    });
+    notifyListeners();
+  }
+
+  void closeConnection() {
+    deviceConnection.finish();
+    deviceConnection.close();
+    deviceConnection.dispose();
+    notifyListeners();
+  }
+
+  String getDeviceAddress() {
+    return device == null ? "" : device.address;
+  }
+
+  String getDeviceName() {
+    return device == null ? "" : device.name;
+  }
+}
+
+void main() {
+  runApp(ChangeNotifierProvider(
+    create: (context) => RootAppStateChangeNotifier(),
+    child: MyApp(),
+  ));
+}
+
+class MyApp extends StatelessWidget {
+  // This widget is the root of your application.
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        primarySwatch: Colors.green,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+      ),
+      home: MyHomePage(title: 'Main Screen'),
+    );
+  }
+}
+
 class _MyHomePageState extends State<MyHomePage> {
   BluetoothState btstate = BluetoothState.UNKNOWN;
-  String _address = "...";
 
   @override
   void initState() {
@@ -75,9 +94,7 @@ class _MyHomePageState extends State<MyHomePage> {
       return true;
     }).then((_) {
       FlutterBluetoothSerial.instance.address.then((address) {
-        setState(() {
-          _address = address;
-        });
+        setState(() {});
       });
     });
 
@@ -88,20 +105,18 @@ class _MyHomePageState extends State<MyHomePage> {
         btstate = state;
       });
     });
+
+    Consumer<RootAppStateChangeNotifier>(
+      builder: (context, rootAppState, child) {},
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
     // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
       body: Center(
@@ -110,13 +125,31 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
+            Consumer<RootAppStateChangeNotifier>(
+                builder: (context, rootAppState, child) {
+              return Text((rootAppState.device == null ||
+                      rootAppState.device.isConnected)
+                  ? "Not Connected to any device"
+                  : "Currently connected to ${rootAppState.getDeviceName()}\n${rootAppState.getDeviceAddress()}");
+            }),
             MaterialButton(
+              color: Colors.blue[300],
               child: Text("Go To Settings"),
               onPressed: () {
                 Navigator.push(
                     context,
                     new MaterialPageRoute(
                         builder: (context) => new SettingsPage()));
+              },
+            ),
+            MaterialButton(
+              color: Colors.blue[300],
+              child: Text("Scan"),
+              onPressed: () {
+                Navigator.push(
+                    context,
+                    new MaterialPageRoute(
+                        builder: (context) => new ScanningPage()));
               },
             ),
           ],
