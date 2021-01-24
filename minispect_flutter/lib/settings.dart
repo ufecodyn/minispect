@@ -46,6 +46,43 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
+  Widget DeviceListTile(BluetoothDevice device, BuildContext scaffoldContext) {
+    return Consumer<RootAppStateChangeNotifier>(
+      builder: (context, rootAppState, child) {
+        return Card(
+          child: ListTile(
+            title: Text('${device.name}'),
+            subtitle: Text('${device.address}'),
+            tileColor: (device.address == rootAppState.getDeviceAddress() &&
+                    device.isConnected)
+                ? Colors.green[50]
+                : device.isConnected
+                    ? Colors.blue[50]
+                    : (device.isBonded)
+                        ? Colors.white
+                        : Colors.grey,
+            trailing: Icon(
+                device.isConnected
+                    ? Icons.bluetooth_audio
+                    : Icons.bluetooth_disabled,
+                color: (device.address == rootAppState.getDeviceAddress() &&
+                        device.isConnected)
+                    ? Colors.green
+                    : device.isConnected
+                        ? Colors.blue
+                        : Colors.grey),
+            onTap: () {
+              Scaffold.of(scaffoldContext).showSnackBar(
+                  SnackBar(content: Text('Connecting to ${device.name}...')));
+              rootAppState.openConnection(device);
+            },
+            onLongPress: () => deviceDialog(device),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> deviceDialog(BluetoothDevice device) async {
     return showDialog<void>(
         context: context,
@@ -88,9 +125,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: new AppBar(
-          title: new Text("Settings"),
-        ),
+        appBar: new AppBar(title: new Text("Settings")),
         body: Builder(
             builder: (scaffoldContext) => ListView.builder(
                   itemCount: devices == null ? 1 : devices.length,
@@ -98,42 +133,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     if (devices != null) {
                       return Consumer<RootAppStateChangeNotifier>(
                           builder: (context, rootAppState, child) {
-                        return Card(
-                          child: ListTile(
-                            title: Text('${devices[index].name}'),
-                            subtitle: Text('${devices[index].address}'),
-                            tileColor: (devices[index].address ==
-                                        rootAppState.getDeviceAddress() &&
-                                    devices[index].isConnected)
-                                ? Colors.green[50]
-                                : devices[index].isConnected
-                                    ? Colors.blue[50]
-                                    : (devices[index].isBonded)
-                                        ? Colors.white
-                                        : Colors.grey,
-                            trailing: IconButton(
-                              icon: Icon(
-                                  devices[index].isConnected
-                                      ? Icons.bluetooth_audio
-                                      : Icons.bluetooth_disabled,
-                                  color: (devices[index].address ==
-                                              rootAppState.getDeviceAddress() &&
-                                          devices[index].isConnected)
-                                      ? Colors.green
-                                      : devices[index].isConnected
-                                          ? Colors.blue[50]
-                                          : Colors.grey),
-                              onPressed: () {},
-                            ),
-                            onTap: () {
-                              Scaffold.of(scaffoldContext).showSnackBar(SnackBar(
-                                  content: Text(
-                                      'Connecting to ${devices[index].name}...')));
-                              rootAppState.openConnection(devices[index]);
-                            },
-                            onLongPress: () => deviceDialog(devices[index]),
-                          ),
-                        );
+                        return DeviceListTile(devices[index], scaffoldContext);
                       });
                     } else {
                       return ListTile(

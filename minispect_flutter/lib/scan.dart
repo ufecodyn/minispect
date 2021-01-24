@@ -1,8 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:minispect_flutter/main.dart';
 import 'package:provider/provider.dart';
-import 'dart:convert';
+import 'package:charts_flutter/flutter.dart' as charts;
 
 class ScanningPage extends StatefulWidget {
   ScanningPage({Key key}) : super(key: key);
@@ -12,7 +13,8 @@ class ScanningPage extends StatefulWidget {
 }
 
 class _ScanningPageState extends State<ScanningPage> {
-  String received;
+  String receiveBuf;
+  List<int> data;
   final _formKey = GlobalKey<FormState>();
 
   final textController = TextEditingController();
@@ -20,22 +22,10 @@ class _ScanningPageState extends State<ScanningPage> {
   @override
   void initState() {
     super.initState();
-    received = "";
+    receiveBuf = "";
     textController.addListener(() {
       super.setState(() {});
     });
-    Consumer<RootAppStateChangeNotifier>(
-      builder: (context, rootAppState, child) {
-        print("init");
-        rootAppState.openConnection(rootAppState.device);
-        rootAppState.deviceConnection.input.listen((value) {
-          String text = String.fromCharCodes(value);
-          print(text);
-          print('Listener Called');
-          received = text;
-        });
-      },
-    );
   }
 
   @override
@@ -43,6 +33,20 @@ class _ScanningPageState extends State<ScanningPage> {
     textController.dispose();
 
     super.dispose();
+  }
+
+  void concatReceived(var lump) {
+    var decoded = String.fromCharCodes(lump);
+    if (decoded.indexOf('\n') == -1) {
+      receiveBuf = receiveBuf + decoded;
+    } else {
+      receiveBuf = receiveBuf + decoded;
+      data.clear();
+      receiveBuf.split(" ").forEach((element) {
+        data.add(int.parse(element));
+      });
+      receiveBuf = "";
+    }
   }
 
   @override
@@ -55,25 +59,26 @@ class _ScanningPageState extends State<ScanningPage> {
             child: Builder(
           builder: (scaffoldContext) => Column(
             children: <Widget>[
-              Consumer<RootAppStateChangeNotifier>(
-                builder: (context, rootAppState, child) {
-                  if (rootAppState.getDeviceAddress() == "") {
-                    return Text('No device selected');
-                  } else if (!rootAppState.device.isConnected) {
-                    return Text(
-                        '${rootAppState.getDeviceName()} not connected');
-                  } else
-                    return Text('${rootAppState.getDeviceName()} connected');
-                },
-              ),
+              // Consumer<RootAppStateChangeNotifier>(
+              //   builder: (context, rootAppState, child) {
+              //     if (rootAppState.getDeviceAddress() == "") {
+              //       return Text('No device selected');
+              //     } else if (!rootAppState.device.isConnected) {
+              //       return Text(
+              //           '${rootAppState.getDeviceName()} not connected');
+              //     } else
+              //       return Text('${rootAppState.getDeviceName()} connected');
+              //   },
+              // ),
               RichText(
                 text: TextSpan(
-                    text: 'Received Message: ${received}',
+                    text: 'Received Message: ${receiveBuf}',
                     style: TextStyle(
                       backgroundColor: Colors.black,
                       color: Colors.white,
                     )),
               ),
+              //charts.LineChart(charts.Series(data: data), animate: animate),
               Consumer<RootAppStateChangeNotifier>(
                 builder: (context, rootAppState, child) {
                   return Form(
@@ -90,9 +95,7 @@ class _ScanningPageState extends State<ScanningPage> {
                           rootAppState.deviceConnection.output
                               .add(ascii.encode(textController.text));
                           rootAppState.deviceConnection.input.listen((event) {
-                            setState(() {
-                              received = received + String.fromCharCodes(event);
-                            });
+                            setState(() => concatReceived(event));
                           }).onDone(() {
                             print('Done Receiving Data');
                           });
