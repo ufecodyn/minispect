@@ -6,17 +6,24 @@
  */
 
 #define SPEC_CHANNELS 288
-#define VIDEO A4
-#define BAUD 115200
-
+#define VIDEO A6
+#define LIGHT 4
+#define ONBOARD_LED 13
+#define BAUD 9600
+#include <SoftwareSerial.h>
 
 int vals[SPEC_CHANNELS];
 int serialByteIn;
+//SoftwareSerial bluetooth(8, 9);
 
 void setup() {
  DDRD = DDRD | B11111100;
  PORTD = B00000000;
  Serial.begin(BAUD);
+ pinMode(ONBOARD_LED, OUTPUT);
+ digitalWrite(ONBOARD_LED, LOW);
+ pinMode(LIGHT, OUTPUT);
+ digitalWrite(LIGHT, LOW);
 }
 
 
@@ -34,6 +41,9 @@ void setup() {
  */
 
 static inline void sequence(int intTime){
+  digitalWrite(LIGHT, HIGH);
+  delay(100);
+
   //ST HIGH: 6 CLOCKS
   // --- Clock --- 0
   PORTD = B00001100;
@@ -527,18 +537,24 @@ static inline void sequence(int intTime){
     clock(); 
     vals[i] = analogRead(VIDEO);
   }
+  digitalWrite(LIGHT, LOW);
+
 }
 
 void printValues(){
   for(int i = 0; i < SPEC_CHANNELS; i++){
     Serial.print(vals[i]);
-    Serial.write(" ");
+    Serial.print(" ");
   }
-  Serial.write("\n");
+  Serial.print("\n");
 }
 
-void bluetoothInit(){
-  
+void printValuesSerial(){
+  for(int i = 0; i < SPEC_CHANNELS; i++){
+    Serial.print(vals[i]);
+    Serial.print(' ');
+  }
+  Serial.print('\n');
 }
 
 static inline void clock(){
@@ -550,16 +566,21 @@ static inline void clock(){
 }
 
 void loop() {
+  //digitalWrite(LIGHT, HIGH);
   if(Serial){
     serialByteIn = Serial.read();
+
     if(serialByteIn == 'r'){
+        digitalWrite(ONBOARD_LED, HIGH);
         int intTime = Serial.parseInt();
+        delay(10);
         sequence(intTime);
-        /*Serial.print( intTime: ");
-        Serial.print intTime);
-        Serial.print("\n");*/
+        //printValuesSerial();
         printValues();
         serialByteIn = 'a';
+        digitalWrite(ONBOARD_LED, LOW);
+
     }
+
   }
 }

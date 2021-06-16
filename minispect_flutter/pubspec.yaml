@@ -18,12 +18,17 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ">=2.7.0 <3.0.0"
+  sdk: ">=2.10.0 <3.0.0"
 
 dependencies:
   flutter_bluetooth_serial: ^0.2.2
   permission_handler: ^5.0.1+1
-  provider: ^3.0.0
+  provider: ^5.0.0
+  scidart: ^0.0.1-dev.12
+  charts_flutter: ^0.10.0
+  tflite_flutter: ^0.8.0
+  path_provider: ^2.0.1
+  flutter_downloader: ^1.6.1
   flutter:
     sdk: flutter
 
@@ -43,6 +48,8 @@ dev_dependencies:
 
 # The following section is specific to Flutter.
 flutter:
+  assets:
+    - assets/chl-latest.tflite
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

@@ -1,37 +1,38 @@
+// @dart=2.9
+
 import 'dart:async';
+import 'dart:io';
+import 'dart:isolate';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:flutter_downloader/flutter_downloader.dart';
+
 import './settings.dart';
 import './scan.dart';
+import './projects.dart';
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
+class HomePage extends StatefulWidget {
+  HomePage({Key key, this.title}) : super(key: key);
 
   final String title;
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _HomePageState createState() => _HomePageState();
 }
 
 class RootAppStateChangeNotifier extends ChangeNotifier {
   BluetoothConnection deviceConnection;
   BluetoothDevice device;
+  StreamSubscription deviceSubscription;
 
   void openConnection(BluetoothDevice newDevice) {
     BluetoothConnection.toAddress(newDevice.address).then((newConnection) {
-      deviceConnection = newConnection;
-      device = newDevice;
-    });
+      this.deviceConnection = newConnection;
+    }).timeout(const Duration(seconds: 5));
+    this.device = newDevice;
     notifyListeners();
   }
 
@@ -51,29 +52,64 @@ class RootAppStateChangeNotifier extends ChangeNotifier {
   }
 }
 
-void main() {
+void checkModelDownloaded(String filename) async {
+  getExternalStorageDirectory().then((value) {
+    Directory models_dir = Directory('${value.path}/models/');
+    models_dir.create();
+
+    // try {
+    //   if (models_dir.existsSync()) {
+    //   } else {
+    //     models_dir.create();
+    //   }
+    // } catch (err) {
+    // }
+    FlutterDownloader.registerCallback((id, status, progress) {
+      print('callback');
+    });
+    try {
+      // if (File('${models_dir.path}$filename').existsSync()) {
+      // } else {
+      final taskId = FlutterDownloader.enqueue(
+        url: "http://minispect.vmpuri.com/$filename",
+        savedDir: "${models_dir.path}",
+        showNotification:
+            false, // show download progress in status bar (for Android)
+        openFileFromNotification:
+            false, // click on notification to open downloaded file (for Android)
+      );
+    } catch (e) {
+      print(e);
+    }
+    // }
+  });
+}
+
+void main() async {
+  await FlutterDownloader.initialize();
+  //FlutterDownloader.registerCallback((id, status, progress) {});
+
   runApp(ChangeNotifierProvider(
     create: (context) => RootAppStateChangeNotifier(),
-    child: MyApp(),
+    child: MinispectApp(),
   ));
 }
 
-class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
+class MinispectApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Minispect',
       theme: ThemeData(
         primarySwatch: Colors.green,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: MyHomePage(title: 'Main Screen'),
+      home: HomePage(title: 'Main Screen'),
     );
   }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _HomePageState extends State<HomePage> {
   BluetoothState btstate = BluetoothState.UNKNOWN;
 
   @override
@@ -105,16 +141,10 @@ class _MyHomePageState extends State<MyHomePage> {
         btstate = state;
       });
     });
-
-    Consumer<RootAppStateChangeNotifier>(
-      builder: (context, rootAppState, child) {},
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -133,8 +163,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   : "Currently connected to ${rootAppState.getDeviceName()}\n${rootAppState.getDeviceAddress()}");
             }),
             MaterialButton(
-              color: Colors.blue[300],
-              child: Text("Go To Settings"),
+              color: Colors.green,
+              child: Text("Settings"),
               onPressed: () {
                 Navigator.push(
                     context,
@@ -143,13 +173,20 @@ class _MyHomePageState extends State<MyHomePage> {
               },
             ),
             MaterialButton(
-              color: Colors.blue[300],
-              child: Text("Scan"),
+              color: Colors.green,
+              child: Text("Projects"),
               onPressed: () {
                 Navigator.push(
                     context,
                     new MaterialPageRoute(
-                        builder: (context) => new ScanningPage()));
+                        builder: (context) => new ProjectsPage()));
+              },
+            ),
+            MaterialButton(
+              color: Colors.green,
+              child: Text("Update Model"),
+              onPressed: () {
+                checkModelDownloaded('chl-latest.tflite');
               },
             ),
           ],

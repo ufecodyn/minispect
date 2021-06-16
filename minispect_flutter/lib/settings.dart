@@ -1,9 +1,11 @@
+//@dart = 2.9
 import 'package:flutter/cupertino.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:provider/provider.dart';
 import 'package:minispect_flutter/main.dart';
+import 'package:flutter_downloader/flutter_downloader.dart';
 
 class SettingsPage extends StatefulWidget {
   final String title;
@@ -46,7 +48,9 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
-  Widget DeviceListTile(BluetoothDevice device, BuildContext scaffoldContext) {
+  void downloadModel() async {}
+
+  Widget deviceListTile(BluetoothDevice device, BuildContext scaffoldContext) {
     return Consumer<RootAppStateChangeNotifier>(
       builder: (context, rootAppState, child) {
         return Card(
@@ -72,7 +76,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ? Colors.blue
                         : Colors.grey),
             onTap: () {
-              Scaffold.of(scaffoldContext).showSnackBar(
+              ScaffoldMessenger.of(scaffoldContext).showSnackBar(
                   SnackBar(content: Text('Connecting to ${device.name}...')));
               rootAppState.openConnection(device);
             },
@@ -125,15 +129,23 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: new AppBar(title: new Text("Settings")),
-        body: Builder(
+      appBar: new AppBar(title: new Text("Settings")),
+      body: Column(children: [
+        ListTile(
+          title: Text('Get Latest Model'),
+          trailing: IconButton(
+            icon: Icon(Icons.download),
+            onPressed: () => downloadModel(),
+          ),
+        ),
+        Builder(
             builder: (scaffoldContext) => ListView.builder(
                   itemCount: devices == null ? 1 : devices.length,
                   itemBuilder: (context, index) {
                     if (devices != null) {
                       return Consumer<RootAppStateChangeNotifier>(
                           builder: (context, rootAppState, child) {
-                        return DeviceListTile(devices[index], scaffoldContext);
+                        return deviceListTile(devices[index], scaffoldContext);
                       });
                     } else {
                       return ListTile(
@@ -141,6 +153,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       );
                     }
                   },
-                )));
+                ))
+      ]),
+    );
   }
 }

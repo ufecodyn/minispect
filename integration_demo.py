@@ -113,7 +113,7 @@ def auto_integration_time_improved(time, target):
 
 if __name__ == "__main__":
     state = 'z'
-    intTime = 0
+    intTime = 10
     while(state != 'x'):
         print("Current Integration Time:", intTime)
         print("Select an Option:")
