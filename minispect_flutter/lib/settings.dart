@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:minispect_flutter/minispect.dart';
 import 'package:provider/provider.dart';
 import 'package:minispect_flutter/main.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
@@ -32,7 +33,7 @@ class _SettingsPageState extends State<SettingsPage> {
     });
 
     bluetoothRefresh = new Timer.periodic(
-        Duration(seconds: 5),
+        Duration(seconds: 2),
         (Timer t) => FlutterBluetoothSerial.instance
                 .getBondedDevices()
                 .then((bondedDevices) {
@@ -48,8 +49,6 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
-  void downloadModel() async {}
-
   Widget deviceListTile(BluetoothDevice device, BuildContext scaffoldContext) {
     return Consumer<RootAppStateChangeNotifier>(
       builder: (context, rootAppState, child) {
@@ -57,28 +56,50 @@ class _SettingsPageState extends State<SettingsPage> {
           child: ListTile(
             title: Text('${device.name}'),
             subtitle: Text('${device.address}'),
-            tileColor: (device.address == rootAppState.getDeviceAddress() &&
-                    device.isConnected)
-                ? Colors.green[50]
-                : device.isConnected
+            tileColor: (rootAppState.minispectDevice == null)
+                ? (device.isConnected
                     ? Colors.blue[50]
                     : (device.isBonded)
                         ? Colors.white
-                        : Colors.grey,
-            trailing: Icon(
-                device.isConnected
-                    ? Icons.bluetooth_audio
-                    : Icons.bluetooth_disabled,
-                color: (device.address == rootAppState.getDeviceAddress() &&
-                        device.isConnected)
-                    ? Colors.green
+                        : Colors.grey)
+                : (rootAppState.minispectDevice.getAddress() == device.address)
+                    ? Colors.green[50]
                     : device.isConnected
-                        ? Colors.blue
-                        : Colors.grey),
+                        ? Colors.blue[50]
+                        : (device.isBonded)
+                            ? Colors.white
+                            : Colors.grey,
+            trailing: Icon(
+              device.isConnected
+                  ? Icons.bluetooth_audio
+                  : Icons.bluetooth_disabled,
+              color: ((rootAppState.minispectDevice == null)
+                  ? (device.isConnected
+                      ? Colors.blue
+                      : (device.isBonded)
+                          ? Colors.white
+                          : Colors.grey)
+                  : (rootAppState.minispectDevice.getAddress() ==
+                          device.address)
+                      ? Colors.green
+                      : device.isConnected
+                          ? Colors.blue
+                          : (device.isBonded)
+                              ? Colors.white
+                              : Colors.grey),
+            ),
             onTap: () {
-              ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                  SnackBar(content: Text('Connecting to ${device.name}...')));
-              rootAppState.openConnection(device);
+              if (!device.isConnected) {
+                ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                    SnackBar(content: Text('Connecting to ${device.name}...')));
+                rootAppState.minispectDevice =
+                    MinispectDevice.fromDevice(device);
+                rootAppState.minispectDevice.openConnection(device);
+              } else {
+                ScaffoldMessenger.of(scaffoldContext).showSnackBar(SnackBar(
+                    content: Text('Disconnecting from ${device.name}...')));
+                rootAppState.minispectDevice.closeConnection();
+              }
             },
             onLongPress: () => deviceDialog(device),
           ),
@@ -106,13 +127,13 @@ class _SettingsPageState extends State<SettingsPage> {
                           child: Card(
                               child: Text("Disconnect"),
                               color: (device.address ==
-                                      rootAppState.getDeviceAddress())
+                                      rootAppState.minispectDevice.getAddress())
                                   ? Colors.blue[50]
                                   : Colors.grey),
                           onPressed: () {
                             if (device.address ==
-                                rootAppState.getDeviceAddress()) {
-                              rootAppState.closeConnection();
+                                rootAppState.minispectDevice.getAddress()) {
+                              rootAppState.minispectDevice.closeConnection();
                               // Scaffold.of(alertDialogContext).showSnackBar(
                               //     SnackBar(content: Text('Disconnecting...')));
                             }
@@ -129,16 +150,8 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: new AppBar(title: new Text("Settings")),
-      body: Column(children: [
-        ListTile(
-          title: Text('Get Latest Model'),
-          trailing: IconButton(
-            icon: Icon(Icons.download),
-            onPressed: () => downloadModel(),
-          ),
-        ),
-        Builder(
+        appBar: new AppBar(title: new Text("Settings")),
+        body: Builder(
             builder: (scaffoldContext) => ListView.builder(
                   itemCount: devices == null ? 1 : devices.length,
                   itemBuilder: (context, index) {
@@ -153,8 +166,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       );
                     }
                   },
-                ))
-      ]),
-    );
+                )));
   }
 }

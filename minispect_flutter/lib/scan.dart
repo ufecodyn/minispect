@@ -6,7 +6,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:minispect_flutter/chart.dart';
 import 'package:provider/provider.dart';
-//import 'package:minispect_flutter/chart.dart';
 import 'package:minispect_flutter/main.dart';
 import 'package:minispect_flutter/file_writing.dart';
 import 'package:minispect_flutter/equations.dart';
@@ -27,10 +26,15 @@ class _ScanningPageState extends State<ScanningPage> {
 
   String currScanType = "data";
   String receiveBuf = "";
-  double integration = 8;
+  double integration = 2;
   List<List<int>> refs = [];
   List<List<int>> data = []; //List<int>.filled(288, 0, growable: false);
+  List<double> chlPreds = [];
   final objectNameController = TextEditingController();
+
+  ChlModel model = ChlModel();
+
+  double predictedChl = 1.0037;
 
   @override
   void initState() {
@@ -41,49 +45,6 @@ class _ScanningPageState extends State<ScanningPage> {
   void dispose() {
     super.dispose();
     objectNameController.dispose();
-  }
-
-  bool concatReceived(var lump) {
-    var decoded = String.fromCharCodes(lump);
-    this.receiveBuf += decoded;
-    int find = this.receiveBuf.indexOf(";");
-    if (find != -1) {
-      // String temp =
-      //     find < receiveBuf.length - 1 ? receiveBuf.substring(find + 1) : "";
-      receiveBuf = receiveBuf.substring(0, find - 1);
-      pushBuffer();
-      //setState(() => this.receiveBuf = temp); // temp;
-      this.receiveBuf = "";
-      return true;
-    }
-    return false;
-  }
-
-  void pushBuffer() {
-    try {
-      List<int> newData = this.receiveBuf.split(" ").map(int.parse).toList();
-      if (newData.length != 288) {
-        print(
-            "ERROR:  ${newData.length}, ${data.length}, ${data[data.length - 1].length}");
-        print(receiveBuf);
-      }
-      setState(() {
-        switch (this.currScanType) {
-          case "data":
-            this.data.add(newData);
-            break;
-          case "ref":
-            this.refs.add(newData);
-            break;
-          default:
-            this.data.add(newData);
-            break;
-        }
-      });
-      this.receiveBuf = "";
-    } catch (e) {
-      print(e.toString());
-    }
   }
 
   void saveScan() {
@@ -180,17 +141,17 @@ class _ScanningPageState extends State<ScanningPage> {
                 builder: (context, rootAppState, child) {
                   return Column(children: <Widget>[
                     Container(
-                      height: 400,
-                      // child: this.data.length > 0
-                      //     ? SimpleSpectrumChart.withData(
-                      //         this.data[this.data.length - 1])
-                      //     : Text('No scans'),
+                      height: 350,
                       child: ListView(
                         children: this
                             .data
-                            .map((value) => Container(
+                            .asMap()
+                            .entries
+                            .map((entry) => Container(
                                   height: 300,
-                                  child: Center(child: Text(value.toString())),
+                                  child: Center(
+                                      child: Text(
+                                          "Estimated Chl: ${model.predict(entry.value, (this.refs.isNotEmpty) ? this.refs[this.refs.length - 1] : List<int>.filled(288, 1))} g/m^2 ${entry.value.toString()}")),
                                 ))
                             .toList(),
                       ),
@@ -198,8 +159,8 @@ class _ScanningPageState extends State<ScanningPage> {
                     Slider(
                       value: integration,
                       min: 0,
-                      max: 50,
-                      divisions: 25,
+                      max: 5,
+                      divisions: 5,
                       onChanged: (double value) {
                         setState(() {
                           integration = value;
@@ -210,49 +171,43 @@ class _ScanningPageState extends State<ScanningPage> {
 
                     // Send message button
                     ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                            SnackBar(content: Text('Scanning...')));
-                        rootAppState.deviceConnection.output.add(ascii
-                            .encode('r' + (integration).toInt().toString()));
+                            SnackBar(
+                                content: Text('Scanning...'),
+                                duration: Duration(seconds: 1)));
+                        //rootAppState.deviceConnection.output.add(ascii
+                        //    .encode('r' + (integration).toInt().toString()));
+                        List<int> newData = await rootAppState.minispectDevice
+                            .scan(integration.toInt());
                         setState(() {
-                          this.currScanType = "data";
+                          this.data.add(newData);
+                          print(refs[0]);
+                          //print(model.predict(newData, refs[refs.length - 1]));
+                          // this.chlPreds.add(
+                          //     model.predict(newData, refs[refs.length - 1]));
                         });
-                        // StreamSubscription sub;
-                        // sub =
-                        //     rootAppState.deviceConnection.input.listen((event) {
-                        //   bool done = concatReceived(event);
-                        //   if (done) {
-                        //     //sub.cancel();
-                        //     print('done receiving data');
-                        //   }
-                        // });
                       },
                       child: Text('Send'),
                     ),
                     ElevatedButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                            SnackBar(
-                                content: Text(
-                                    'Collecting Reference $integration...')));
-                        rootAppState.deviceConnection.output.add(ascii
-                            .encode('r' + (integration).toInt().toString()));
+                      onPressed: () async {
+                        ScaffoldMessenger.of(scaffoldContext)
+                            .showSnackBar(SnackBar(
+                          content: Text('Scanning...'),
+                          duration: Duration(seconds: 1),
+                        ));
+                        //rootAppState.deviceConnection.output.add(ascii
+                        //    .encode('r' + (integration).toInt().toString()));
+                        List<int> newData = await rootAppState.minispectDevice
+                            .scan(integration.toInt());
                         setState(() {
-                          this.currScanType = "ref";
+                          print("Refs ${refs.length}");
+                          this.refs.add(newData);
                         });
-                        // StreamSubscription sub;
-                        // sub =
-                        //     rootAppState.deviceConnection.input.listen((event) {
-                        //   bool done = concatReceived(event);
-                        //   if (done) {
-                        //     print('done receiving reference');
-                        //   }
-                        // });
                       },
                       child: Text('Reference Scan'),
                     ),
-                    Text('${refs.length} Reference Scans taken'),
                   ]);
                 },
               )

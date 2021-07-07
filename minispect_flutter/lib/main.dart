@@ -2,14 +2,17 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
 import 'dart:isolate';
 
+//import 'package:observable/observable.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 
+import './minispect.dart';
 import './settings.dart';
 import './scan.dart';
 import './projects.dart';
@@ -24,32 +27,39 @@ class HomePage extends StatefulWidget {
 }
 
 class RootAppStateChangeNotifier extends ChangeNotifier {
-  BluetoothConnection deviceConnection;
-  BluetoothDevice device;
-  StreamSubscription deviceSubscription;
+  MinispectDevice minispectDevice = new MinispectDevice();
+  // BluetoothConnection deviceConnection;
+  // BluetoothDevice device;
 
-  void openConnection(BluetoothDevice newDevice) {
-    BluetoothConnection.toAddress(newDevice.address).then((newConnection) {
-      this.deviceConnection = newConnection;
-    }).timeout(const Duration(seconds: 5));
-    this.device = newDevice;
-    notifyListeners();
-  }
+  // String receiveBuf = "";
 
-  void closeConnection() {
-    deviceConnection.finish();
-    deviceConnection.close();
-    deviceConnection.dispose();
-    notifyListeners();
-  }
+  // List<int> currentData;
+  // bool newDataReady = false;
 
-  String getDeviceAddress() {
-    return device == null ? "" : device.address;
-  }
+  // Future<List<int>> scan(int i) async {
+  //   deviceConnection.output.add(ascii.encode("r" + (i).toInt().toString()));
+  //   //print(ascii.encode('r' + (i).toInt().toString()));
 
-  String getDeviceName() {
-    return device == null ? "" : device.name;
-  }
+  //   Timer(Duration(milliseconds: 2000), () {
+  //     this.newDataReady = false;
+  //   });
+  //   return this.currentData;
+  // }
+
+  // void openConnection(BluetoothDevice newDevice) {
+  //   BluetoothConnection.toAddress(newDevice.address)
+  //       .then((newConnection) {
+  //         this.deviceConnection = newConnection;
+  //         this.device = newDevice;
+  //         deviceConnection.input.listen((event) {
+  //           this.newDataReady = concatReceived(event);
+  //         });
+  //       })
+  //       .timeout(const Duration(seconds: 5))
+  //       .then((value) {});
+
+  //   notifyListeners();
+  // }
 }
 
 void checkModelDownloaded(String filename) async {
@@ -57,13 +67,12 @@ void checkModelDownloaded(String filename) async {
     Directory models_dir = Directory('${value.path}/models/');
     models_dir.create();
 
-    // try {
-    //   if (models_dir.existsSync()) {
-    //   } else {
-    //     models_dir.create();
-    //   }
-    // } catch (err) {
-    // }
+    try {
+      if (models_dir.existsSync()) {
+      } else {
+        models_dir.create();
+      }
+    } catch (err) {}
     FlutterDownloader.registerCallback((id, status, progress) {
       print('callback');
     });
@@ -86,9 +95,7 @@ void checkModelDownloaded(String filename) async {
 }
 
 void main() async {
-  await FlutterDownloader.initialize();
-  //FlutterDownloader.registerCallback((id, status, progress) {});
-
+  //await FlutterDownloader.initialize();
   runApp(ChangeNotifierProvider(
     create: (context) => RootAppStateChangeNotifier(),
     child: MinispectApp(),
@@ -157,14 +164,14 @@ class _HomePageState extends State<HomePage> {
           children: <Widget>[
             Consumer<RootAppStateChangeNotifier>(
                 builder: (context, rootAppState, child) {
-              return Text((rootAppState.device == null ||
-                      rootAppState.device.isConnected)
+              return Text((rootAppState.minispectDevice == null ||
+                      rootAppState.minispectDevice.device.isConnected)
                   ? "Not Connected to any device"
-                  : "Currently connected to ${rootAppState.getDeviceName()}\n${rootAppState.getDeviceAddress()}");
+                  : "Currently connected to ${rootAppState.minispectDevice.getName()}\n${rootAppState.minispectDevice}");
             }),
             MaterialButton(
               color: Colors.green,
-              child: Text("Settings"),
+              child: Text("Devices"),
               onPressed: () {
                 Navigator.push(
                     context,
