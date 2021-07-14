@@ -14,12 +14,13 @@
 
 int vals[SPEC_CHANNELS];
 int serialByteIn;
-//SoftwareSerial bluetooth(8, 9);
+SoftwareSerial bluetooth(8, 9);
 
 void setup() {
  DDRD = DDRD | B11111100;
  PORTD = B00000000;
- Serial.begin(BAUD);
+ //Serial.begin(BAUD);
+ bluetooth.begin(BAUD);
  pinMode(ONBOARD_LED, OUTPUT);
  digitalWrite(ONBOARD_LED, LOW);
  pinMode(LIGHT, OUTPUT);
@@ -41,8 +42,6 @@ void setup() {
  */
 
 static inline void sequence(int intTime){
-  digitalWrite(LIGHT, HIGH);
-  delay(100);
 
   //ST HIGH: 6 CLOCKS
   // --- Clock --- 0
@@ -537,16 +536,14 @@ static inline void sequence(int intTime){
     clock(); 
     vals[i] = analogRead(VIDEO);
   }
-  digitalWrite(LIGHT, LOW);
-
 }
 
 void printValues(){
   for(int i = 0; i < SPEC_CHANNELS; i++){
-    Serial.print(vals[i]);
-    Serial.print(" ");
+    bluetooth.print(vals[i]);
+    bluetooth.print(" ");
   }
-  Serial.print("\n");
+  bluetooth.print(";");
 }
 
 void printValuesSerial(){
@@ -567,18 +564,28 @@ static inline void clock(){
 
 void loop() {
   //digitalWrite(LIGHT, HIGH);
-  if(Serial){
-    serialByteIn = Serial.read();
+  if(bluetooth.available()){
+    serialByteIn = bluetooth.read();
 
     if(serialByteIn == 'r'){
         digitalWrite(ONBOARD_LED, HIGH);
-        int intTime = Serial.parseInt();
-        delay(10);
+        int intTime = bluetooth.parseInt();
+        for (int i = 0; i < intTime%10; i++) {
+          digitalWrite(ONBOARD_LED, LOW);
+          delay(100);
+          digitalWrite(ONBOARD_LED, HIGH);
+          delay(100);
+        }
+        
+        digitalWrite(LIGHT, HIGH);
+
+        delay(250);
         sequence(intTime);
         //printValuesSerial();
         printValues();
         serialByteIn = 'a';
         digitalWrite(ONBOARD_LED, LOW);
+        digitalWrite(LIGHT, LOW);
 
     }
 

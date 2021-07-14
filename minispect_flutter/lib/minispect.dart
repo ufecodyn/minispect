@@ -1,5 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ffi';
+import 'dart:io';
+import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:observable/observable.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
@@ -9,14 +13,16 @@ const int SPEC_CHANNELS = 288;
 class MinispectDevice {
   BluetoothDevice device = BluetoothDevice();
   BluetoothConnection connection;
-  var subscription;
+  Stream<Uint8List> _deviceOutputStream;
+  StreamSubscription<Uint8List> _deviceOutputListener;
 
-  String _receiveBuf;
+  String _receiveBuf = "";
   List<int> currentData;
 
   MinispectDevice() {
     this.device = BluetoothDevice();
     this.connection = null;
+    this._receiveBuf = "";
   }
 
   MinispectDevice.fromDevice(BluetoothDevice _device) {
@@ -25,13 +31,15 @@ class MinispectDevice {
 
   // TODO: Add timeout
   Future<List<int>> scan(int i) async {
-    connection.output.add(ascii.encode("r" + (i).toInt().toString()));
-    subscription.listen((lump) {
+    print('scan');
+    connection.output.add(ascii.encode("r" + i.toString()));
+    Completer<List<int>> c = new Completer<List<int>>();
+    _deviceOutputListener = _deviceOutputStream.listen((lump) {
       if (concatReceived(lump)) {
-        subscription.cancel();
-        return this.currentData;
+        c.complete(this.currentData);
       }
     });
+    return c.future;
     // var subscription;
     // subscription = connection.input.listen((lump) {
     //   if (concatReceived(lump)) {
@@ -43,13 +51,14 @@ class MinispectDevice {
 
   bool concatReceived(var lump) {
     var decoded = String.fromCharCodes(lump);
-    _receiveBuf += decoded;
+    this._receiveBuf += decoded;
     int find = _receiveBuf.indexOf(";");
 
     if (find != -1) {
-      _receiveBuf = _receiveBuf.substring(0, find - 1);
+      this._receiveBuf = this._receiveBuf.substring(0, find - 1);
       pushBuffer();
-      _receiveBuf = "";
+      this._receiveBuf = "";
+      this._deviceOutputListener.pause();
       return true;
     }
 
@@ -63,21 +72,23 @@ class MinispectDevice {
         throw FormatException(
             "New Data length (${newData.length}) not equal to SPEC_CHANNELS ($SPEC_CHANNELS)");
       this.currentData = newData;
-      _receiveBuf = "";
+      this._receiveBuf = "";
     } catch (e) {
       print(e.toString());
     }
   }
 
-  void openConnection(BluetoothDevice newDevice) {
-    BluetoothConnection.toAddress(newDevice.address)
-        .then((newConnection) {
-          this.connection = newConnection;
-          this.device = newDevice;
-          this.subscription = connection.input;
-        })
-        .timeout(const Duration(seconds: 5))
-        .then((value) {});
+  bool openConnection(BluetoothDevice newDevice) {
+    BluetoothConnection.toAddress(newDevice.address).then((newConnection) {
+      this.connection = newConnection;
+      this.device = newDevice;
+      this._deviceOutputStream = connection.input.asBroadcastStream();
+      return true;
+    }).timeout(const Duration(seconds: 5), onTimeout: () {
+      return false;
+    }).onError((error, stackTrace) {
+      return false;
+    });
   }
 
   void closeConnection() {

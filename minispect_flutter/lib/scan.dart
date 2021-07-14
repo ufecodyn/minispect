@@ -151,7 +151,7 @@ class _ScanningPageState extends State<ScanningPage> {
                                   height: 300,
                                   child: Center(
                                       child: Text(
-                                          "Estimated Chl: ${model.predict(entry.value, (this.refs.isNotEmpty) ? this.refs[this.refs.length - 1] : List<int>.filled(288, 1))} g/m^2 ${entry.value.toString()}")),
+                                          "Estimated Chl: ${model.predict(entry.value, (this.refs.isNotEmpty) ? this.refs[this.refs.length - 1] : List<int>.filled(288, 1)).toStringAsPrecision(3)} g/m^2 ${entry.value.toString()}")),
                                 ))
                             .toList(),
                       ),
@@ -171,23 +171,33 @@ class _ScanningPageState extends State<ScanningPage> {
 
                     // Send message button
                     ElevatedButton(
-                      onPressed: () async {
-                        ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                            SnackBar(
-                                content: Text('Scanning...'),
-                                duration: Duration(seconds: 1)));
-                        //rootAppState.deviceConnection.output.add(ascii
-                        //    .encode('r' + (integration).toInt().toString()));
-                        List<int> newData = await rootAppState.minispectDevice
-                            .scan(integration.toInt());
-                        setState(() {
-                          this.data.add(newData);
-                          print(refs[0]);
-                          //print(model.predict(newData, refs[refs.length - 1]));
-                          // this.chlPreds.add(
-                          //     model.predict(newData, refs[refs.length - 1]));
-                        });
-                      },
+                      onPressed: (refs.isEmpty)
+                          ? () {
+                              ScaffoldMessenger.of(scaffoldContext)
+                                  .showSnackBar(SnackBar(
+                                      content: Text(
+                                          'Please take a reference scan first.'),
+                                      duration: Duration(seconds: 3)));
+                            }
+                          : () async {
+                              ScaffoldMessenger.of(scaffoldContext)
+                                  .showSnackBar(SnackBar(
+                                      content: Text('Scanning...'),
+                                      duration: Duration(seconds: 1)));
+                              //rootAppState.deviceConnection.output.add(ascii
+                              //    .encode('r' + (integration).toInt().toString()));
+                              rootAppState.minispectDevice
+                                  .scan(integration.toInt())
+                                  .then((newData) {
+                                setState(() {
+                                  this.data.add(newData);
+                                  print(refs[0]);
+                                  //print(model.predict(newData, refs[refs.length - 1]));
+                                  // this.chlPreds.add(
+                                  //     model.predict(newData, refs[refs.length - 1]));
+                                });
+                              });
+                            },
                       child: Text('Send'),
                     ),
                     ElevatedButton(
@@ -199,11 +209,17 @@ class _ScanningPageState extends State<ScanningPage> {
                         ));
                         //rootAppState.deviceConnection.output.add(ascii
                         //    .encode('r' + (integration).toInt().toString()));
-                        List<int> newData = await rootAppState.minispectDevice
-                            .scan(integration.toInt());
-                        setState(() {
-                          print("Refs ${refs.length}");
-                          this.refs.add(newData);
+                        // List<int> newData = await rootAppState.minispectDevice
+                        //     .scan(integration.toInt());
+
+                        rootAppState.minispectDevice
+                            .scan(integration.toInt())
+                            .then((newData) {
+                          setState(() {
+                            this.refs.add(newData);
+                          });
+                          print(
+                              "Refs ${refs.length} ${refs[refs.length - 1].toString()}");
                         });
                       },
                       child: Text('Reference Scan'),

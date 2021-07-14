@@ -19,10 +19,10 @@ class ChlModel {
   }
 
   double predict(List<int> data, List<int> ref) {
-    double output;
+    List<List<dynamic>> output = List.filled(1, 0).reshape([1, 1]);
     List<List<double>> input = [extendedPolynomialMatrix(calibrate(data, ref))];
-    //_intepreter.run(input, output);
-    return output;
+    _intepreter.run(input, output);
+    return output[0][0];
   }
 }
 

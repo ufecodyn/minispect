@@ -28,38 +28,6 @@ class HomePage extends StatefulWidget {
 
 class RootAppStateChangeNotifier extends ChangeNotifier {
   MinispectDevice minispectDevice = new MinispectDevice();
-  // BluetoothConnection deviceConnection;
-  // BluetoothDevice device;
-
-  // String receiveBuf = "";
-
-  // List<int> currentData;
-  // bool newDataReady = false;
-
-  // Future<List<int>> scan(int i) async {
-  //   deviceConnection.output.add(ascii.encode("r" + (i).toInt().toString()));
-  //   //print(ascii.encode('r' + (i).toInt().toString()));
-
-  //   Timer(Duration(milliseconds: 2000), () {
-  //     this.newDataReady = false;
-  //   });
-  //   return this.currentData;
-  // }
-
-  // void openConnection(BluetoothDevice newDevice) {
-  //   BluetoothConnection.toAddress(newDevice.address)
-  //       .then((newConnection) {
-  //         this.deviceConnection = newConnection;
-  //         this.device = newDevice;
-  //         deviceConnection.input.listen((event) {
-  //           this.newDataReady = concatReceived(event);
-  //         });
-  //       })
-  //       .timeout(const Duration(seconds: 5))
-  //       .then((value) {});
-
-  //   notifyListeners();
-  // }
 }
 
 void checkModelDownloaded(String filename) async {
